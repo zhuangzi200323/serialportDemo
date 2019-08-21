@@ -1,0 +1,2 @@
+include ':serialport', ':app'
+rootProject.name='SerialportDemo'
