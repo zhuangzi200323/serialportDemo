@@ -144,6 +144,120 @@ JNIEXPORT jobject JNICALL Java_com_jack_serialport_SerialPort_open
 	return mFileDescriptor;
 }
 
+static void throwException(JNIEnv *env, const char *name, const char *msg)
+{
+    jclass cls = (*env)->FindClass(env, name);
+    /* if cls is NULL, an exception has already been thrown */
+    if (cls != NULL) {
+        (*env)->ThrowNew(env, cls, msg);
+    }
+
+    /* free the local ref */
+    (*env)->DeleteLocalRef(env, cls);
+}
+
+/*
+ * Class:     android_serialport_SerialPort
+ * Method:    open
+ * Signature: (Ljava/lang/String;II)Ljava/io/FileDescriptor;
+ */
+JNIEXPORT jobject JNICALL Java_com_jack_serialport_SerialPort_open2
+		(JNIEnv *env, jclass thiz, jstring path, jint baudrate, jint parity, jint dataBits, jint stopBit)
+{
+    int fd;
+    int flags;
+    speed_t speed;
+    jobject mFileDescriptor;
+
+    flags=0;
+
+    /* Check arguments */
+    {
+        speed = getBaudrate(baudrate);
+        if (speed == -1) {
+            throwException(env, "java/lang/IllegalArgumentException", "Invalid baudrate");
+            return NULL;
+        }
+        if (parity <0 || parity>2) {
+            throwException(env, "java/lang/IllegalArgumentException", "Invalid parity");
+            return NULL;
+        }
+        if (dataBits <5 || dataBits>8) {
+            throwException(env, "java/lang/IllegalArgumentException", "Invalid dataBits");
+            return NULL;
+        }
+        if (stopBit <1 || stopBit>2) {
+            throwException(env, "java/lang/IllegalArgumentException", "Invalid stopBit");
+            return NULL;
+        }
+    }
+
+    /* Opening device */
+    {
+        jboolean iscopy;
+        const char *path_utf = (*env)->GetStringUTFChars(env, path, &iscopy);
+        fd = open(path_utf, O_RDWR | flags);
+        (*env)->ReleaseStringUTFChars(env, path, path_utf);
+        if (fd == -1)
+        {
+            throwException(env, "java/io/IOException", "Cannot open port");
+            return NULL;
+        }
+    }
+
+    /* Configure device */
+    {
+        struct termios cfg;
+        if (tcgetattr(fd, &cfg))
+        {
+            close(fd);
+            throwException(env, "java/io/IOException", "tcgetattr() failed");
+            return NULL;
+        }
+
+        cfmakeraw(&cfg);
+        cfsetispeed(&cfg, speed);
+        cfsetospeed(&cfg, speed);
+
+        /* More attribute set */
+        switch (parity) {
+            case 0: break;
+            case 1: cfg.c_cflag |= PARENB; break;
+            case 2: cfg.c_cflag &= ~PARODD; break;
+        }
+        switch (dataBits) {
+            case 5: cfg.c_cflag |= CS5; break;
+            case 6: cfg.c_cflag |= CS6; break;
+            case 7: cfg.c_cflag |= CS7; break;
+            case 8: cfg.c_cflag |= CS8; break;
+        }
+        switch (stopBit) {
+            case 1: cfg.c_cflag &= ~CSTOPB; break;
+            case 2: cfg.c_cflag |= CSTOPB; break;
+        }
+        int rc = tcsetattr(fd, TCSANOW, &cfg);
+        /*
+		if (rc)
+		{
+			close(fd);
+		    throwException(env, "java/io/IOException", strcat("tcsetattr() failed: ", rc));
+			return NULL;
+		}
+		*/
+    }
+
+    /* Create a corresponding file descriptor */
+    {
+        jclass cFileDescriptor = (*env)->FindClass(env, "java/io/FileDescriptor");
+        jmethodID iFileDescriptor = (*env)->GetMethodID(env, cFileDescriptor, "<init>", "()V");
+        jfieldID descriptorID = (*env)->GetFieldID(env, cFileDescriptor, "descriptor", "I");
+        mFileDescriptor = (*env)->NewObject(env, cFileDescriptor, iFileDescriptor);
+        (*env)->SetIntField(env, mFileDescriptor, descriptorID, (jint)fd);
+    }
+
+    return mFileDescriptor;
+}
+
 /*
  * Class:     cedric_serial_SerialPort
  * Method:    close

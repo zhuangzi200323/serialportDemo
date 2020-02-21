@@ -17,6 +17,14 @@ JNIEXPORT jobject JNICALL Java_com_jack_serialport_SerialPort_open
 
 /*
  * Class:     com_jack_serialport_SerialPort
+ * Method:    open2
+ * Signature: (Ljava/lang/String;IIII)Ljava/io/FileDescriptor;
+ */
+JNIEXPORT jobject JNICALL Java_com_jack_serialport_SerialPort_open2
+        (JNIEnv *, jclass, jstring, jint, jint, jint, jint);
+
+/*
+ * Class:     com_jack_serialport_SerialPort
  * Method:    close
  * Signature: ()V
  */
