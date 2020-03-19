@@ -1,5 +1,6 @@
 package com.jack.serialprotdemo;
 
+import android.os.SystemClock;
 import android.util.Log;
 
 import com.jack.serialport.SerialPort;
@@ -60,6 +61,22 @@ public class SerialPortHelper {
         }
     }
 
+    public void open2() throws SecurityException, IOException, InvalidParameterException {
+        mSerialPort = new SerialPort(new File(mPort), mBaudRate, 0, 8, 1);
+        mOutputStream = mSerialPort.getOutputStream();
+        mInputStream = mSerialPort.getInputStream();
+
+        if (mReadThread == null) {
+            mReadThread = new ReadThread();
+            mReadThread.start();
+        }
+        if (mOutputStream != null && mInputStream != null) {
+            mIsOpen = true;
+        } else {
+            Log.e(TAG, "open serial port err. ");
+        }
+    }
+
     public void close() {
         try {
             if (mReadThread != null) {
@@ -93,6 +110,12 @@ public class SerialPortHelper {
         send(bOutArray);
     }
 
+    public void sendHex(String sHex) {
+        sHex = sHex.replace(" ", "");
+        byte[] bOutArray = MyFunc.HexToByteArr(sHex);
+        send(bOutArray);
+    }
+
     public void send(final byte[] bOutArray) {
         try {
             if (mIsOpen) {
@@ -112,7 +135,8 @@ public class SerialPortHelper {
         public void run() {
             super.run();
             try {
-                newRead(!isInterrupted());
+                read(!isInterrupted());
+                //readNonBlock();
             } catch (IOException e) {
                 e.printStackTrace();
 
@@ -120,7 +144,12 @@ public class SerialPortHelper {
         }
     }
 
-    private void newRead(boolean notInterrupted) throws IOException {
+    /**
+     * 阻塞方式读取
+     * @param notInterrupted
+     * @throws IOException
+     */
+    private void read(boolean notInterrupted) throws IOException {
         if (mInputStream == null) {
             return;
         }
@@ -134,6 +163,61 @@ public class SerialPortHelper {
             resultData = Tool.ByteToString(temp);
             Log.e(TAG, "received data:" + resultData);
         }
+    }
+
+    /**
+     * 轮询读
+     * @throws IOException
+     */
+    private void readNonBlock() throws IOException {
+        if (mInputStream == null) {
+            return;
+        }
+        Log.e(TAG, "###### begin read thread ######");
+        byte[] buff = new byte[1024];
+        int len;
+        int dataLen = -1;//所有数据长度
+        byte sum = 0x00;
+        String resultData = "";
+        while (true) {
+            if (Thread.currentThread().isInterrupted()) {
+                break;
+            }
+            try {
+                int available = mInputStream.available();
+                if (available > 0) {
+                    len = mInputStream.read(buff);
+                    byte[] temp = new byte[len];
+                    System.arraycopy(buff, 0, temp, 0, len);
+                    resultData += Tool.ByteToString(temp);
+                    Log.e(TAG, "#######:" + resultData);
+                } else {
+                    // 暂停一点时间，免得一直循环造成CPU占用率过高
+                    SystemClock.sleep(10);
+                }
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        Log.e(TAG, "###### end read thread ########");
+    }
+
+    private int getDataLen(byte[] data){
+        if(data.length >= 8){
+            return (((data[4]&0xff + 0)<<8) + (data[5]&0xff + 0));
+        }
+        return -1;
+    }
+
+    //SUM 值为计算其前面 7byte 和扩展域的算术和，然后低字节取反
+    private byte checkData(byte[] data, int len){
+        byte sum = 0x00;
+        for(int i=0; i<len-1; i++) {
+            sum += data[i];
+        }
+        sum = (byte)~sum;
+        return sum;
     }
 
     private ISerialPortReceiveData iSerialPortReceiveData;
