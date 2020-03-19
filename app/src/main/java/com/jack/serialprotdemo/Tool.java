@@ -9,9 +9,6 @@ public class Tool {
 		if(num == 0) {
 			return "";
 		}
-		if(num>50) {
-			num = 50;
-		}
 		String result = "";
 		String temp = "";
 		for(int i = 0; i<num; i++) {
@@ -36,9 +33,6 @@ public class Tool {
 		int num = f.length;
 		if(num == 0) {
 			return "";
-		}
-		if(num>50) {
-			num = 50;
 		}
 		String result = "";
 		String temp = "";
