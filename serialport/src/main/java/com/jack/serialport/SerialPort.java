@@ -50,31 +50,33 @@ public class SerialPort {
     private FileInputStream mFileInputStream;
     private FileOutputStream mFileOutputStream;
 
-    public SerialPort(File device, int baudrate, int flags) throws SecurityException, IOException {
-		/* Check access permission */
-        if (!device.canRead() || !device.canWrite()) {
-            try {
-                /* Missing read/write permission, trying to chmod the file */
-                Process su;
-                su = Runtime.getRuntime().exec(sSuPath);
-                String cmd = "chmod 666 " + device.getAbsolutePath() + "\n" + "exit\n";
-                su.getOutputStream().write(cmd.getBytes());
-                if ((su.waitFor() != 0) || !device.canRead() || !device.canWrite()) {
-                    throw new SecurityException();
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-                throw new SecurityException();
-            }
-        }
+    public SerialPort(File device, int baudrate) throws SecurityException, IOException {
+        this(device, baudrate, 0);
+    }
 
-        mFd = open(device.getAbsolutePath(), baudrate, flags);
-        if (mFd == null) {
-            Log.e(TAG, "native open returns null");
-            throw new IOException();
-        }
-        mFileInputStream = new FileInputStream(mFd);
-        mFileOutputStream = new FileOutputStream(mFd);
+    public SerialPort(String devicePath, int baudrate) throws SecurityException, IOException {
+        this(new File(devicePath), baudrate, 0);
+    }
+
+    public SerialPort(File device, int baudrate, int flags) throws SecurityException, IOException {
+        this(device, baudrate, 0, 8, 1, flags);
+    }
+
+    public SerialPort(String devicePath, int baudrate, int flags) throws SecurityException, IOException {
+        this(new File(devicePath), baudrate, flags);
+    }
+
+    public SerialPort(String devicePath, int baudrate, int parity, int dataBits, int stopBits, int flags)
+            throws SecurityException, IOException {
+        this(new File(devicePath), baudrate, parity, dataBits, stopBits, flags);
+    }
+
+    public SerialPort(File device, int baudrate, int parity, int dataBits, int stopBits) throws SecurityException, IOException {
+        this(device, baudrate, parity, dataBits, stopBits, 0);
+    }
+
+    public SerialPort(String devicePath, int baudrate, int parity, int dataBits, int stopBits) throws SecurityException, IOException {
+        this(new File(devicePath), baudrate, parity, dataBits, stopBits, 0);
     }
 
     /**
@@ -83,9 +85,10 @@ public class SerialPort {
      *@param baudrate 波特率，一般是9600
      *@param parity 奇偶校验，0 None, 1 Odd, 2 Even
      *@param dataBits 数据位，5 - 8
-     *@param stopBit 停止位，1 或 2
+     *@param stopBits 停止位，1 或 2
+     * @param flags 0
      */
-    public SerialPort(File device, int baudrate, int parity, int dataBits, int stopBit) throws SecurityException, IOException {
+    public SerialPort(File device, int baudrate, int parity, int dataBits, int stopBits, int flags) throws SecurityException, IOException {
         /* Check access permission */
         if (!device.canRead() || !device.canWrite()) {
             try {
@@ -104,26 +107,13 @@ public class SerialPort {
             }
         }
 
-        mFd = open2(device.getAbsolutePath(), baudrate, parity, dataBits, stopBit);
+        mFd = open2(device.getAbsolutePath(), baudrate, parity, dataBits, stopBits, flags);
         if (mFd == null) {
             Log.e(TAG, "native open returns null");
             throw new IOException();
         }
         mFileInputStream = new FileInputStream(mFd);
         mFileOutputStream = new FileOutputStream(mFd);
-    }
-
-    public SerialPort(String devicePath, int baudrate, int flags)
-        throws SecurityException, IOException {
-        this(new File(devicePath), baudrate, flags);
-    }
-
-    public SerialPort(File device, int baudrate) throws SecurityException, IOException {
-        this(device, baudrate, 0);
-    }
-
-    public SerialPort(String devicePath, int baudrate) throws SecurityException, IOException {
-        this(new File(devicePath), baudrate, 0);
     }
 
     // Getters and setters
@@ -137,11 +127,65 @@ public class SerialPort {
 
     // JNI
     private native static FileDescriptor open(String path, int baudrate, int flags);
-    private native static FileDescriptor open2(String path, int baudrate, int parity, int dataBits, int stopBit);
+    private native static FileDescriptor open2(String path, int baudrate, int parity, int dataBits, int stopBit, int flags);
 
     public native void close();
 
     static {
         System.loadLibrary("serial_port");
+    }
+
+    public static SerialPort.Builder newBuilder(File device, int baudrate) {
+        return new SerialPort.Builder(device, baudrate);
+    }
+
+    public static SerialPort.Builder newBuilder(String devicePath, int baudrate) {
+        return new SerialPort.Builder(devicePath, baudrate);
+    }
+
+    public static final class Builder {
+        private File device;
+        private int baudrate;
+        private int dataBits;
+        private int parity;
+        private int stopBits;
+        private int flags;
+
+        private Builder(File device, int baudrate) {
+            this.dataBits = 8;
+            this.parity = 0;
+            this.stopBits = 1;
+            this.flags = 0;
+            this.device = device;
+            this.baudrate = baudrate;
+        }
+
+        private Builder(String devicePath, int baudrate) {
+            this(new File(devicePath), baudrate);
+        }
+
+        public SerialPort.Builder dataBits(int dataBits) {
+            this.dataBits = dataBits;
+            return this;
+        }
+
+        public SerialPort.Builder parity(int parity) {
+            this.parity = parity;
+            return this;
+        }
+
+        public SerialPort.Builder stopBits(int stopBits) {
+            this.stopBits = stopBits;
+            return this;
+        }
+
+        public SerialPort.Builder flags(int flags) {
+            this.flags = flags;
+            return this;
+        }
+
+        public SerialPort build() throws SecurityException, IOException {
+            return new SerialPort(this.device, this.baudrate, this.dataBits, this.parity, this.stopBits, this.flags);
+        }
     }
 }

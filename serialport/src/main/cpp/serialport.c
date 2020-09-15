@@ -76,72 +76,73 @@ static speed_t getBaudrate(jint baudrate)
 JNIEXPORT jobject JNICALL Java_com_jack_serialport_SerialPort_open
   (JNIEnv *env, jclass thiz, jstring path, jint baudrate, jint flags)
 {
-	int fd;
-	speed_t speed;
-	jobject mFileDescriptor;
-
-	/* Check arguments */
-	{
-		speed = getBaudrate(baudrate);
-		if (speed == -1) {
-			/* TODO: throw an exception */
-			LOGE("Invalid baudrate");
-			return NULL;
-		}
-	}
-
-	/* Opening device */
-	{
-		jboolean iscopy;
-		const char *path_utf = (*env)->GetStringUTFChars(env, path, &iscopy);
-		LOGD("Opening serial port %s with flags 0x%x", path_utf, O_RDWR | flags);
-		fd = open(path_utf, O_RDWR | flags);
-		LOGD("open() fd = %d", fd);
-		(*env)->ReleaseStringUTFChars(env, path, path_utf);
-		if (fd == -1)
-		{
-			/* Throw an exception */
-			LOGE("Cannot open port");
-			/* TODO: throw an exception */
-			return NULL;
-		}
-	}
-
-	/* Configure device */
-	{
-		struct termios cfg;
-		LOGD("Configuring serial port");
-		if (tcgetattr(fd, &cfg))
-		{
-			LOGE("tcgetattr() failed");
-			close(fd);
-			/* TODO: throw an exception */
-			return NULL;
-		}
-
-		cfmakeraw(&cfg);
-		cfsetispeed(&cfg, speed);
-		cfsetospeed(&cfg, speed);
-
-		if (tcsetattr(fd, TCSANOW, &cfg))
-		{
-			LOGE("tcsetattr() failed");
-			close(fd);
-			/* TODO: throw an exception */
-			return NULL;
-		}
-	}
-
-	/* Create a corresponding file descriptor */
-	{
-		jclass cFileDescriptor = (*env)->FindClass(env, "java/io/FileDescriptor");
-		jmethodID iFileDescriptor = (*env)->GetMethodID(env, cFileDescriptor, "<init>", "()V");
-		jfieldID descriptorID = (*env)->GetFieldID(env, cFileDescriptor, "descriptor", "I");
-		mFileDescriptor = (*env)->NewObject(env, cFileDescriptor, iFileDescriptor);
-		(*env)->SetIntField(env, mFileDescriptor, descriptorID, (jint)fd);
-	}
-
-	return mFileDescriptor;
+    return Java_com_jack_serialport_SerialPort_open2(env, thiz, path, baudrate, 0, 8, 1, flags);
+//	int fd;
+//	speed_t speed;
+//	jobject mFileDescriptor;
+//
+//	/* Check arguments */
+//	{
+//		speed = getBaudrate(baudrate);
+//		if (speed == -1) {
+//			/* TODO: throw an exception */
+//			LOGE("Invalid baudrate");
+//			return NULL;
+//		}
+//	}
+//
+//	/* Opening device */
+//	{
+//		jboolean iscopy;
+//		const char *path_utf = (*env)->GetStringUTFChars(env, path, &iscopy);
+//		LOGD("Opening serial port %s with flags 0x%x", path_utf, O_RDWR | flags);
+//		fd = open(path_utf, O_RDWR | flags);
+//		LOGD("open() fd = %d", fd);
+//		(*env)->ReleaseStringUTFChars(env, path, path_utf);
+//		if (fd == -1)
+//		{
+//			/* Throw an exception */
+//			LOGE("Cannot open port");
+//			/* TODO: throw an exception */
+//			return NULL;
+//		}
+//	}
+//
+//	/* Configure device */
+//	{
+//		struct termios cfg;
+//		LOGD("Configuring serial port");
+//		if (tcgetattr(fd, &cfg))
+//		{
+//			LOGE("tcgetattr() failed");
+//			close(fd);
+//			/* TODO: throw an exception */
+//			return NULL;
+//		}
+//
+//		cfmakeraw(&cfg);
+//		cfsetispeed(&cfg, speed);
+//		cfsetospeed(&cfg, speed);
+//
+//		if (tcsetattr(fd, TCSANOW, &cfg))
+//		{
+//			LOGE("tcsetattr() failed");
+//			close(fd);
+//			/* TODO: throw an exception */
+//			return NULL;
+//		}
+//	}
+//
+//	/* Create a corresponding file descriptor */
+//	{
+//		jclass cFileDescriptor = (*env)->FindClass(env, "java/io/FileDescriptor");
+//		jmethodID iFileDescriptor = (*env)->GetMethodID(env, cFileDescriptor, "<init>", "()V");
+//		jfieldID descriptorID = (*env)->GetFieldID(env, cFileDescriptor, "descriptor", "I");
+//		mFileDescriptor = (*env)->NewObject(env, cFileDescriptor, iFileDescriptor);
+//		(*env)->SetIntField(env, mFileDescriptor, descriptorID, (jint)fd);
+//	}
+//
+//	return mFileDescriptor;
 }
 
 static void throwException(JNIEnv *env, const char *name, const char *msg)
@@ -162,14 +163,11 @@ static void throwException(JNIEnv *env, const char *name, const char *msg)
  * Signature: (Ljava/lang/String;II)Ljava/io/FileDescriptor;
  */
 JNIEXPORT jobject JNICALL Java_com_jack_serialport_SerialPort_open2
-		(JNIEnv *env, jclass thiz, jstring path, jint baudrate, jint parity, jint dataBits, jint stopBit)
+		(JNIEnv *env, jclass thiz, jstring path, jint baudrate, jint parity, jint dataBits, jint stopBit, jint flags)
 {
     int fd;
-    int flags;
     speed_t speed;
     jobject mFileDescriptor;
-
-    flags=0;
 
     /* Check arguments */
     {
@@ -196,7 +194,9 @@ JNIEXPORT jobject JNICALL Java_com_jack_serialport_SerialPort_open2
     {
         jboolean iscopy;
         const char *path_utf = (*env)->GetStringUTFChars(env, path, &iscopy);
+        LOGD("Opening serial port %s with flags 0x%x", path_utf, O_RDWR | flags);
         fd = open(path_utf, O_RDWR | flags);
+        LOGD("open() fd = %d", fd);
         (*env)->ReleaseStringUTFChars(env, path, path_utf);
         if (fd == -1)
         {
@@ -236,14 +236,12 @@ JNIEXPORT jobject JNICALL Java_com_jack_serialport_SerialPort_open2
             case 2: cfg.c_cflag |= CSTOPB; break;
         }
         int rc = tcsetattr(fd, TCSANOW, &cfg);
-        /*
 		if (rc)
 		{
 			close(fd);
-		    throwException(env, "java/io/IOException", strcat("tcsetattr() failed: ", rc));
+		    throwException(env, "java/io/IOException", "tcsetattr() failed: ");
 			return NULL;
 		}
-		*/
     }
 
     /* Create a corresponding file descriptor */

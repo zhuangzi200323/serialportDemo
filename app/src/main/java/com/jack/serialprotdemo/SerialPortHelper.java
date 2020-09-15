@@ -62,7 +62,7 @@ public class SerialPortHelper {
     }
 
     public void open2() throws SecurityException, IOException, InvalidParameterException {
-        mSerialPort = new SerialPort(new File(mPort), mBaudRate, 0, 8, 1);
+        mSerialPort = new SerialPort(new File(mPort), mBaudRate, 0, 8, 1, 0);
         mOutputStream = mSerialPort.getOutputStream();
         mInputStream = mSerialPort.getInputStream();
 
