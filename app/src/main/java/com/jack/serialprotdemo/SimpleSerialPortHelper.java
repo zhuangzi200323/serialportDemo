@@ -4,21 +4,22 @@ import android.os.SystemClock;
 import android.util.Log;
 
 import com.jack.serialport.SerialPort;
+import com.jack.utils.ByteStringHexUtils;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.security.InvalidParameterException;
 
 /**
- * 操作串口helper类
+ * 操作串口简单helper类，单独的线程中进行读操作，可根据实际需要增加 interface，
+ * 将接收到的数据回调到 ui线程进行相关处理
+ * @author jack
  */
-public class SerialPortHelper {
-    private static final String TAG = SerialPortHelper.class.getSimpleName();
-    private static volatile SerialPortHelper single;
+public class SimpleSerialPortHelper {
+    private static final String TAG = SimpleSerialPortHelper.class.getSimpleName();
+    private static volatile SimpleSerialPortHelper single;
 
     private SerialPort mSerialPort;
     private OutputStream mOutputStream;
@@ -29,19 +30,19 @@ public class SerialPortHelper {
     private int mBaudRate = -1;
     private static boolean mIsOpen = false;
 
-    public static SerialPortHelper getInstance() {
+    public static SimpleSerialPortHelper getInstance() {
         if (null == single) {
-            synchronized (SerialPortHelper.class) {
+            synchronized (SimpleSerialPortHelper.class) {
                 if (null == single) {
-                    single = new SerialPortHelper();
+                    single = new SimpleSerialPortHelper();
                 }
             }
         }
         return single;
     }
 
-    private SerialPortHelper() {
-        this.mPort = "/dev/ttyS4";
+    private SimpleSerialPortHelper() {
+        this.mPort = "/dev/ttyUART1";
         this.mBaudRate = 115200;
     }
 
@@ -112,7 +113,7 @@ public class SerialPortHelper {
 
     public void sendHex(String sHex) {
         sHex = sHex.replace(" ", "");
-        byte[] bOutArray = MyFunc.HexToByteArr(sHex);
+        byte[] bOutArray = ByteStringHexUtils.HexToByteArr(sHex);
         send(bOutArray);
     }
 
@@ -121,7 +122,7 @@ public class SerialPortHelper {
             if (mIsOpen) {
                 mOutputStream.write(bOutArray);
                 mOutputStream.flush();
-                Log.i(TAG, "send data: " + Tool.printByteToString(bOutArray));
+                Log.i(TAG, "send data: " + ByteStringHexUtils.printByteToString(bOutArray));
             } else {
                 Log.i(TAG, "comm is closed");
             }
@@ -139,7 +140,6 @@ public class SerialPortHelper {
                 //readNonBlock();
             } catch (IOException e) {
                 e.printStackTrace();
-
             }
         }
     }
@@ -160,7 +160,7 @@ public class SerialPortHelper {
         while (notInterrupted && ((len = mInputStream.read(buff)) != -1)) {
             byte[] temp = new byte[len];
             System.arraycopy(buff, 0, temp, 0, len);
-            resultData = Tool.ByteToString(temp);
+            resultData = ByteStringHexUtils.ByteToString(temp);
             Log.e(TAG, "received data:" + resultData);
         }
     }
@@ -189,7 +189,7 @@ public class SerialPortHelper {
                     len = mInputStream.read(buff);
                     byte[] temp = new byte[len];
                     System.arraycopy(buff, 0, temp, 0, len);
-                    resultData += Tool.ByteToString(temp);
+                    resultData += ByteStringHexUtils.ByteToString(temp);
                     Log.e(TAG, "#######:" + resultData);
                 } else {
                     // 暂停一点时间，免得一直循环造成CPU占用率过高
@@ -201,32 +201,5 @@ public class SerialPortHelper {
             }
         }
         Log.e(TAG, "###### end read thread ########");
-    }
-
-    private int getDataLen(byte[] data){
-        if(data.length >= 8){
-            return (((data[4]&0xff + 0)<<8) + (data[5]&0xff + 0));
-        }
-        return -1;
-    }
-
-    //SUM 值为计算其前面 7byte 和扩展域的算术和，然后低字节取反
-    private byte checkData(byte[] data, int len){
-        byte sum = 0x00;
-        for(int i=0; i<len-1; i++) {
-            sum += data[i];
-        }
-        sum = (byte)~sum;
-        return sum;
-    }
-
-    private ISerialPortReceiveData iSerialPortReceiveData;
-
-    public void setiSerialPortReceiveData(ISerialPortReceiveData iSerialPortReceiveData) {
-        this.iSerialPortReceiveData = iSerialPortReceiveData;
-    }
-
-    public interface ISerialPortReceiveData {
-        void onDataReceived(String data);
     }
 }

@@ -1,6 +1,10 @@
-package com.jack.serialprotdemo;
+package com.jack.utils;
 
-public class Tool {
+/**
+ * byte转string，hex转byte，byte轩hex等等相关操作类
+ * @author jack
+ */
+public class ByteStringHexUtils {
 	public static String printByteToString(byte[] f) {
 		if(f==null) {
 			return "";
@@ -47,6 +51,38 @@ public class Tool {
 			}else{
 				result += temp;
 			}
+		}
+		return result;
+	}
+
+	public static byte HexToByte(String inHex) {
+		return (byte) Integer.parseInt(inHex, 16);
+	}
+
+	public static String Byte2Hex(Byte inByte) {
+		return String.format("%02x", inByte).toUpperCase();
+	}
+
+	public static int isOdd(int num) {
+		return num & 0x1;
+	}
+
+	public static byte[] HexToByteArr(String inHex) {
+		inHex = inHex.replaceAll(" ", "");
+
+		int hexlen = inHex.length();
+		byte[] result;
+		if (isOdd(hexlen) == 1) {
+			hexlen++;
+			result = new byte[(hexlen / 2)];
+			inHex = "0" + inHex;
+		} else {
+			result = new byte[(hexlen / 2)];
+		}
+		int j = 0;
+		for (int i = 0; i < hexlen; i += 2) {
+			result[j] = HexToByte(inHex.substring(i, i + 2));
+			j++;
 		}
 		return result;
 	}

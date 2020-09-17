@@ -185,7 +185,7 @@ public class SerialPort {
         }
 
         public SerialPort build() throws SecurityException, IOException {
-            return new SerialPort(this.device, this.baudrate, this.dataBits, this.parity, this.stopBits, this.flags);
+            return new SerialPort(this.device, this.baudrate, this.parity, this.dataBits, this.stopBits, this.flags);
         }
     }
 }
