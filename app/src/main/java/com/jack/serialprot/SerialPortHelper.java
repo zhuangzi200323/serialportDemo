@@ -237,7 +237,7 @@ public class SerialPortHelper implements ISerialPort {
                     outputStream.write(bOutArray, off, size);
                     outputStream.flush();
                 }
-                Log.i(TAG, "send data: " + ByteStringHexUtils.printByteToString(bOutArray));
+                Log.i(TAG, "send len: " + bOutArray.length + ", send data: " + ByteStringHexUtils.printByteToString(bOutArray));
             } else {
                 Log.e(TAG, "send error isOpen = false");
                 return false;

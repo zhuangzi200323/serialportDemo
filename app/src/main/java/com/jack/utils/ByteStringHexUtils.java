@@ -47,9 +47,9 @@ public class ByteStringHexUtils {
 				temp = Integer.toHexString(f[i] & 0xff);
 			}
 			if (temp.length() == 1){
-				result += "0" + temp;
+				result += "0" + temp + " ";
 			}else{
-				result += temp;
+				result += temp + " ";
 			}
 		}
 		return result;
